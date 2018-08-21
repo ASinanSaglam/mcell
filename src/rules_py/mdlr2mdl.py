@@ -42,6 +42,11 @@ class MDLR2MDL(object):
             extension = "so"
         elif (sys.platform == 'darwin'):
             extension = "dylib"
+            # Let's add libpath to DYLD_LIBRARY_PATH. Don't want to mess anything currently there
+            # so append it instead of overwrite/prepending it.
+            # Two nfsim libs depend on each other, it errors out darwin but doesn't on Linux. 
+            # we don't know if it does in win32. So for now, let's just fix it for darwin only
+            os.environ["DYDL_LIBRARY_PATH"] = os.environ["DYDL_LIBRARY_PATH"] + ":" + self.config["libpath"]
         elif (sys.platform == 'win32'):
             extension = "dll"
         else:
@@ -119,7 +124,9 @@ class MDLR2MDL(object):
             command.extend(['--outdir', output_dir])
         # get a bng-xml file
         print("\n====> Running BioNetGen with: " + " ".join(command) + "\n")
-        call(command)
+        rcode = call(command)
+        # Let's parse the return code from shell
+        assert rcode == 0, "Running BioNetGen failed"
         # extract seed species definition
         seed, rest = split_bngxml.extractSeedBNG(inputMDLRFile + '.xml')
 
@@ -195,7 +202,6 @@ if __name__ == "__main__":
     noext = os.path.splitext(namespace.input)[0]
     xml_name = "{0}.mdlr_rules.xml".format(noext)
 
-
     if namespace.run:
       # Generate command to run MCell
       mcell_path = mdlr2mdl.config['mcell']
@@ -205,4 +211,6 @@ if __name__ == "__main__":
       # Print the command to run MCell
       print("\n====> Running MCell with: " + " ".join(cmd) + "\n")
       # Actually run MCell (if desired)
-      call(cmd)
+      rcode = call(cmd)
+      # Let's parse the return code from shell
+      assert rcode == 0, "MCell run failed"
